@@ -41,7 +41,7 @@
 
         <!-- Game Area -->
         <Border Grid.Row="1" Background="#111116" ClipToBounds="True">
-            <Viewbox>
+            <Viewbox Stretch="Uniform">
                 <!-- Keep game size fixed 800x600 inside Viewbox to scale -->
                 <Grid Width="800" Height="600">
                     <Canvas Background="Transparent">
@@ -57,7 +57,7 @@
                                 <DataTemplate DataType="models:Block">
                                     <Border Width="{Binding Width}" Height="{Binding Height}"
                                             CornerRadius="4" IsVisible="{Binding IsVisible}"
-                                            Background="{Binding Color}"
+                                            Background="{Binding ColorBrush}"
                                             BorderBrush="#40ffffff" BorderThickness="1">
                                         <Border.BoxShadow>
                                             <BoxShadows>0 0 10 0 #40000000</BoxShadows>
@@ -73,23 +73,95 @@
                             </ItemsControl.Styles>
                         </ItemsControl>
 
+                        <!-- Bonuses -->
+                        <ItemsControl ItemsSource="{Binding Bonuses}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <Canvas />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate DataType="models:Bonus">
+                                    <Border Width="{Binding Size}" Height="{Binding Size}"
+                                            CornerRadius="4" Background="{Binding ColorBrush}"
+                                            BorderBrush="White" BorderThickness="2">
+                                        <TextBlock Text="{Binding Text}" HorizontalAlignment="Center" VerticalAlignment="Center" FontWeight="Black" />
+                                        <Border.BoxShadow>
+                                            <BoxShadows>0 0 10 0 #40ffffff</BoxShadows>
+                                        </Border.BoxShadow>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                            <ItemsControl.Styles>
+                                <Style Selector="ContentPresenter" x:DataType="models:Bonus">
+                                    <Setter Property="Canvas.Left" Value="{Binding X}"/>
+                                    <Setter Property="Canvas.Top" Value="{Binding Y}"/>
+                                </Style>
+                            </ItemsControl.Styles>
+                        </ItemsControl>
+
+                        <!-- Lasers -->
+                        <ItemsControl ItemsSource="{Binding Lasers}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <Canvas />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate DataType="models:Laser">
+                                    <Border Width="{Binding Width}" Height="{Binding Height}" Background="Red" CornerRadius="2">
+                                        <Border.BoxShadow>
+                                            <BoxShadows>0 0 5 0 #ff0000</BoxShadows>
+                                        </Border.BoxShadow>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                            <ItemsControl.Styles>
+                                <Style Selector="ContentPresenter" x:DataType="models:Laser">
+                                    <Setter Property="Canvas.Left" Value="{Binding X}"/>
+                                    <Setter Property="Canvas.Top" Value="{Binding Y}"/>
+                                </Style>
+                            </ItemsControl.Styles>
+                        </ItemsControl>
+
                         <!-- Paddle -->
-                        <Border Width="100" Height="20" CornerRadius="10"
+                        <Border Width="{Binding PaddleWidth}" Height="20" CornerRadius="10"
                                 Background="#f5c518"
                                 Canvas.Left="{Binding PaddleX}" Canvas.Top="550">
                             <Border.BoxShadow>
                                 <BoxShadows>0 0 15 0 #80f5c518</BoxShadows>
                             </Border.BoxShadow>
+
+                            <!-- Visual indicators for active bonuses -->
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="10">
+                                <Ellipse Width="8" Height="8" Fill="Pink" IsVisible="{Binding IsSticky}" />
+                                <Ellipse Width="8" Height="8" Fill="Red" IsVisible="{Binding HasLasers}" />
+                            </StackPanel>
                         </Border>
 
-                        <!-- Ball -->
-                        <Ellipse Width="20" Height="20"
-                                 Fill="White"
-                                 Canvas.Left="{Binding BallX}" Canvas.Top="{Binding BallY}">
-                            <Ellipse.Effect>
-                                <DropShadowEffect BlurRadius="10" Color="White" />
-                            </Ellipse.Effect>
-                        </Ellipse>
+                        <!-- Balls -->
+                        <ItemsControl ItemsSource="{Binding Balls}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <Canvas />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate DataType="models:Ball">
+                                    <Ellipse Width="{Binding Size}" Height="{Binding Size}" Fill="White">
+                                        <Ellipse.Effect>
+                                            <DropShadowEffect BlurRadius="10" Color="White" />
+                                        </Ellipse.Effect>
+                                    </Ellipse>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                            <ItemsControl.Styles>
+                                <Style Selector="ContentPresenter" x:DataType="models:Ball">
+                                    <Setter Property="Canvas.Left" Value="{Binding X}"/>
+                                    <Setter Property="Canvas.Top" Value="{Binding Y}"/>
+                                </Style>
+                            </ItemsControl.Styles>
+                        </ItemsControl>
                     </Canvas>
 
                     <!-- Game Overlay (Status / Start) -->

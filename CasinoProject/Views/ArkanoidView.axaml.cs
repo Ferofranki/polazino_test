@@ -37,15 +37,32 @@ public partial class ArkanoidView : UserControl
         this.Focus();
     }
 
+    protected override void OnUnloaded(RoutedEventArgs e)
+    {
+        base.OnUnloaded(e);
+        _paddleTimer?.Stop();
+        if (DataContext is IDisposable disposable)
+        {
+            disposable.Dispose();
+        }
+    }
+
     private void OnKeyDown(object? sender, KeyEventArgs e)
     {
-        if (e.Key == Key.Left) _moveLeft = true;
-        if (e.Key == Key.Right) _moveRight = true;
+        if (e.Key == Key.A) _moveLeft = true;
+        if (e.Key == Key.D) _moveRight = true;
+        if (e.Key == Key.Space)
+        {
+            if (DataContext is ArkanoidViewModel vm)
+            {
+                vm.SpaceAction();
+            }
+        }
     }
 
     private void OnKeyUp(object? sender, KeyEventArgs e)
     {
-        if (e.Key == Key.Left) _moveLeft = false;
-        if (e.Key == Key.Right) _moveRight = false;
+        if (e.Key == Key.A) _moveLeft = false;
+        if (e.Key == Key.D) _moveRight = false;
     }
 }

@@ -19,20 +19,37 @@ public partial class ArkanoidViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     private double _paddleX = 350;
     private const double PaddleY = 550;
-    private const double PaddleWidth = 100;
+    [ObservableProperty]
+    private double _paddleWidth = 100;
+    private const double DefaultPaddleWidth = 100;
     private const double PaddleHeight = 20;
     private const double PaddleSpeed = 30;
 
-    [ObservableProperty]
-    private double _ballX = 390;
-    [ObservableProperty]
-    private double _ballY = 530;
-    private const double BallSize = 20;
-    private double _ballVelocityX = 5;
-    private double _ballVelocityY = -5;
+
+
+
+
+
 
     [ObservableProperty]
     private ObservableCollection<Block> _blocks = new();
+    [ObservableProperty]
+    private ObservableCollection<Ball> _balls = new();
+
+    [ObservableProperty]
+    private ObservableCollection<Bonus> _bonuses = new();
+
+    [ObservableProperty]
+    private ObservableCollection<Laser> _lasers = new();
+
+    [ObservableProperty]
+    private bool _hasLasers;
+
+    [ObservableProperty]
+    private bool _isSticky;
+
+    private Random _random = new Random();
+
 
     [ObservableProperty]
     private int _betAmount = 100;
@@ -107,12 +124,16 @@ public partial class ArkanoidViewModel : ObservableObject, IDisposable
 
     private void InitializeLevel()
     {
+        PaddleWidth = DefaultPaddleWidth;
+        HasLasers = false;
+        IsSticky = false;
         PaddleX = (CanvasWidth - PaddleWidth) / 2;
-        BallX = (CanvasWidth - BallSize) / 2;
-        BallY = PaddleY - BallSize - 5;
 
-        _ballVelocityX = 5;
-        _ballVelocityY = -5;
+        Balls.Clear();
+        Balls.Add(new Ball((CanvasWidth - 20) / 2, PaddleY - 20 - 5, 5, -5));
+
+        Bonuses.Clear();
+        Lasers.Clear();
 
         Blocks.Clear();
 
@@ -136,73 +157,190 @@ public partial class ArkanoidViewModel : ObservableObject, IDisposable
                     startY + row * (blockHeight + padding),
                     blockWidth,
                     blockHeight,
-                    colors[row % colors.Length]
+                    Avalonia.Media.Brush.Parse(colors[row % colors.Length])
                 ));
             }
         }
     }
 
-    private void GameLoop(object? sender, EventArgs e)
+        private void GameLoop(object? sender, EventArgs e)
     {
-        // Move ball
-        BallX += _ballVelocityX;
-        BallY += _ballVelocityY;
-
-        // Wall collisions
-        if (BallX <= 0 || BallX + BallSize >= CanvasWidth)
+        // Update Lasers
+        for (int i = Lasers.Count - 1; i >= 0; i--)
         {
-            _ballVelocityX *= -1;
-        }
-        if (BallY <= 0)
-        {
-            _ballVelocityY *= -1;
-        }
-
-        // Paddle collision
-        if (BallY + BallSize >= PaddleY && BallY + BallSize <= PaddleY + PaddleHeight &&
-            BallX + BallSize >= PaddleX && BallX <= PaddleX + PaddleWidth)
-        {
-            // Simple bounce, adjust based on hit position
-            _ballVelocityY *= -1;
-
-            // Adjust X velocity based on where it hit the paddle
-            double hitPoint = (BallX + BallSize / 2) - (PaddleX + PaddleWidth / 2);
-            _ballVelocityX = hitPoint * 0.15;
-
-            // Ensure ball is just above paddle to prevent getting stuck
-            BallY = PaddleY - BallSize;
-        }
-
-        // Block collisions
-        bool blockHit = false;
-        foreach (var block in Blocks.Where(b => b.IsVisible))
-        {
-            if (BallX + BallSize >= block.X && BallX <= block.X + block.Width &&
-                BallY + BallSize >= block.Y && BallY <= block.Y + block.Height)
+            var laser = Lasers[i];
+            laser.Y -= 10; // Laser speed
+            if (laser.Y < 0)
             {
-                block.IsVisible = false;
-                blockHit = true;
+                Lasers.RemoveAt(i);
+                continue;
+            }
 
-                // Calculate winnings per block: BetAmount * 0.1 (10% of bet per block)
-                CurrentWinnings += (int)(BetAmount * 0.1);
-
-                // Simple collision response - invert Y
-                _ballVelocityY *= -1;
-                break; // Only hit one block per frame
+            // Laser block collision
+            bool hit = false;
+            foreach (var block in Blocks.Where(b => b.IsVisible))
+            {
+                if (laser.X + laser.Width >= block.X && laser.X <= block.X + block.Width &&
+                    laser.Y + laser.Height >= block.Y && laser.Y <= block.Y + block.Height)
+                {
+                    block.IsVisible = false;
+                    CurrentWinnings += (int)(BetAmount * 0.1);
+                    SpawnBonus(block.X + block.Width / 2, block.Y + block.Height / 2);
+                    hit = true;
+                    break;
+                }
+            }
+            if (hit)
+            {
+                Lasers.RemoveAt(i);
             }
         }
 
-        // Check lose condition (ball falls below paddle)
-        if (BallY > CanvasHeight)
+        // Update Bonuses
+        for (int i = Bonuses.Count - 1; i >= 0; i--)
+        {
+            var bonus = Bonuses[i];
+            bonus.Y += 3; // Bonus fall speed
+
+            // Paddle collision
+            if (bonus.Y + bonus.Size >= PaddleY && bonus.Y <= PaddleY + PaddleHeight &&
+                bonus.X + bonus.Size >= PaddleX && bonus.X <= PaddleX + PaddleWidth)
+            {
+                ApplyBonus(bonus.Type);
+                Bonuses.RemoveAt(i);
+                continue;
+            }
+
+            // Missed bonus
+            if (bonus.Y > CanvasHeight)
+            {
+                Bonuses.RemoveAt(i);
+            }
+        }
+
+        // Update Balls
+        for (int i = Balls.Count - 1; i >= 0; i--)
+        {
+            var ball = Balls[i];
+
+            if (ball.IsStuck) continue;
+
+            ball.X += ball.VelocityX;
+            ball.Y += ball.VelocityY;
+
+            // Wall collisions
+            if (ball.X <= 0 || ball.X + ball.Size >= CanvasWidth)
+            {
+                ball.VelocityX *= -1;
+                ball.X = Math.Max(0, Math.Min(ball.X, CanvasWidth - ball.Size)); // Keep in bounds
+            }
+            if (ball.Y <= 0)
+            {
+                ball.VelocityY *= -1;
+                ball.Y = 0;
+            }
+
+            // Paddle collision
+            if (ball.VelocityY > 0 &&
+                ball.Y + ball.Size >= PaddleY && ball.Y + ball.Size <= PaddleY + PaddleHeight + Math.Abs(ball.VelocityY) &&
+                ball.X + ball.Size >= PaddleX && ball.X <= PaddleX + PaddleWidth)
+            {
+                if (IsSticky)
+                {
+                    ball.IsStuck = true;
+                    ball.StuckOffsetX = ball.X - (PaddleX + PaddleWidth / 2);
+                    ball.Y = PaddleY - ball.Size;
+                }
+                else
+                {
+                    ball.VelocityY *= -1;
+                    double hitPoint = (ball.X + ball.Size / 2) - (PaddleX + PaddleWidth / 2);
+                    ball.VelocityX = hitPoint * 0.15;
+                    ball.Y = PaddleY - ball.Size;
+                }
+            }
+
+            // Block collisions
+            foreach (var block in Blocks.Where(b => b.IsVisible))
+            {
+                if (ball.X + ball.Size >= block.X && ball.X <= block.X + block.Width &&
+                    ball.Y + ball.Size >= block.Y && ball.Y <= block.Y + block.Height)
+                {
+                    block.IsVisible = false;
+                    CurrentWinnings += (int)(BetAmount * 0.1);
+                    SpawnBonus(block.X + block.Width / 2, block.Y + block.Height / 2);
+                    ball.VelocityY *= -1;
+                    break;
+                }
+            }
+
+            // Fall below screen
+            if (ball.Y > CanvasHeight)
+            {
+                Balls.RemoveAt(i);
+            }
+        }
+
+        // Check lose condition
+        if (Balls.Count == 0)
         {
             EndGame(false);
             return;
         }
 
-        // Check win condition (all blocks destroyed)
+        // Check win condition
         if (!Blocks.Any(b => b.IsVisible))
         {
             EndGame(true);
+        }
+    }
+
+    private void SpawnBonus(double x, double y)
+    {
+        if (_random.NextDouble() < 0.10) // 10% chance
+        {
+            Array values = Enum.GetValues(typeof(BonusType));
+            BonusType randomType = (BonusType)values.GetValue(_random.Next(values.Length))!;
+            Bonuses.Add(new Bonus(x, y, randomType));
+        }
+    }
+
+    private void ApplyBonus(BonusType type)
+    {
+        switch (type)
+        {
+            case BonusType.Expand:
+                PaddleWidth = Math.Min(200, PaddleWidth + 40);
+                break;
+            case BonusType.Slow:
+                foreach (var b in Balls)
+                {
+                    b.VelocityX *= 0.7;
+                    b.VelocityY *= 0.7;
+                }
+                break;
+            case BonusType.MultiBall:
+                if (Balls.Count > 0)
+                {
+                    var sourceBall = Balls[0];
+                    Balls.Add(new Ball(sourceBall.X, sourceBall.Y, sourceBall.VelocityX - 2, sourceBall.VelocityY - 1));
+                    Balls.Add(new Ball(sourceBall.X, sourceBall.Y, sourceBall.VelocityX + 2, sourceBall.VelocityY - 1));
+                }
+                else
+                {
+                    Balls.Add(new Ball(PaddleX + PaddleWidth/2, PaddleY - 25, -3, -5));
+                    Balls.Add(new Ball(PaddleX + PaddleWidth/2, PaddleY - 25, 3, -5));
+                }
+                break;
+            case BonusType.Cash:
+                CurrentWinnings += BetAmount; // Give 100% of bet as instant bonus
+                break;
+            case BonusType.Sticky:
+                IsSticky = true;
+                break;
+            case BonusType.Lasers:
+                HasLasers = true;
+                break;
         }
     }
 
@@ -230,6 +368,7 @@ public partial class ArkanoidViewModel : ObservableObject, IDisposable
         if (IsGameRunning)
         {
             PaddleX = Math.Max(0, PaddleX - PaddleSpeed);
+            UpdateStuckBalls();
         }
     }
 
@@ -238,6 +377,37 @@ public partial class ArkanoidViewModel : ObservableObject, IDisposable
         if (IsGameRunning)
         {
             PaddleX = Math.Min(CanvasWidth - PaddleWidth, PaddleX + PaddleSpeed);
+            UpdateStuckBalls();
+        }
+    }
+
+    private void UpdateStuckBalls()
+    {
+        foreach (var ball in Balls.Where(b => b.IsStuck))
+        {
+            ball.X = PaddleX + PaddleWidth / 2 + ball.StuckOffsetX;
+        }
+    }
+
+    public void SpaceAction()
+    {
+        if (!IsGameRunning) return;
+
+        bool unstuckAny = false;
+        foreach (var ball in Balls.Where(b => b.IsStuck))
+        {
+            ball.IsStuck = false;
+            unstuckAny = true;
+            // Launch slightly outwards depending on offset
+            ball.VelocityX = ball.StuckOffsetX * 0.15;
+            ball.VelocityY = -5; // Base launch speed
+        }
+
+        if (!unstuckAny && HasLasers)
+        {
+            // Shoot lasers from edges of paddle
+            Lasers.Add(new Laser(PaddleX, PaddleY));
+            Lasers.Add(new Laser(PaddleX + PaddleWidth - 4, PaddleY));
         }
     }
 
