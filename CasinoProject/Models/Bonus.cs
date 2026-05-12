@@ -15,17 +15,22 @@ public enum BonusType
 
 public partial class Bonus : ObservableObject
 {
-    public double X { get; set; }
+    [ObservableProperty]
+    private double _x;
 
     [ObservableProperty]
     private double _y;
 
-    public double Size { get; set; } = 30;
+    [ObservableProperty]
+    private double _size = 30;
 
     public BonusType Type { get; set; }
 
-    public IBrush ColorBrush { get; set; }
-    public string Text { get; set; }
+    [ObservableProperty]
+    private IBrush _colorBrush;
+
+    [ObservableProperty]
+    private string _text;
 
     public Bonus(double x, double y, BonusType type)
     {

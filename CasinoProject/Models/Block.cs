@@ -5,15 +5,20 @@ namespace CasinoProject.Models;
 
 public partial class Block : ObservableObject
 {
-    public double X { get; set; }
-    public double Y { get; set; }
-    public double Width { get; set; }
-    public double Height { get; set; }
-
-    public IBrush ColorBrush { get; set; }
+    [ObservableProperty]
+    private double _x;
 
     [ObservableProperty]
-    private string? _color;
+    private double _y;
+
+    [ObservableProperty]
+    private double _width;
+
+    [ObservableProperty]
+    private double _height;
+
+    [ObservableProperty]
+    private IBrush _colorBrush;
 
     [ObservableProperty]
     private bool _isVisible = true;

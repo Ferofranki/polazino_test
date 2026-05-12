@@ -148,7 +148,7 @@
                             </ItemsControl.ItemsPanel>
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate DataType="models:Ball">
-                                    <Ellipse Width="{Binding Size}" Height="{Binding Size}" Fill="White">
+                                    <Ellipse Width="{Binding Size}" Height="{Binding Size}" Fill="White" Stroke="Red" StrokeThickness="2">
                                         <Ellipse.Effect>
                                             <DropShadowEffect BlurRadius="10" Color="White" />
                                         </Ellipse.Effect>
